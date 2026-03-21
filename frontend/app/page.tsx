@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getAllDeals, truncate, timeAgo, formatDeadline } from "@/lib/contract";
 import StatusBadge from "@/components/StatusBadge";
+import ActivityFeed from "@/components/ActivityFeed";
 
 export const revalidate = 30;
 
@@ -139,8 +140,11 @@ export default async function MarketplacePage() {
         </div>
       </section>
 
-      {/* Deals table */}
+      {/* Deals table + Activity feed */}
       <section id="deals" className="max-w-7xl mx-auto px-6 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
+        {/* Left: deals table */}
+        <div>
         <div className="flex items-center justify-between mb-6">
           <div>
             <div className="font-mono text-xs text-[#3A4558] tracking-widest mb-1">
@@ -217,6 +221,13 @@ export default async function MarketplacePage() {
             </div>
           </div>
         )}
+        </div>{/* end left */}
+
+        {/* Right: activity feed */}
+        <div className="lg:sticky lg:top-20 lg:self-start">
+          <ActivityFeed />
+        </div>
+        </div>{/* end grid */}
       </section>
 
       {/* Integrations strip */}

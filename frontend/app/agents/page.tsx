@@ -1,4 +1,4 @@
-import { getAllDeals, truncate, Deal, getAgentReputation, AgentReputation } from "@/lib/contract";
+import { getAllDeals, truncate, timeAgo, Deal, getAgentReputation, AgentReputation, getAgentFeedback, Feedback } from "@/lib/contract";
 import StatusBadge from "@/components/StatusBadge";
 import Link from "next/link";
 
@@ -8,6 +8,7 @@ interface AgentSummary {
   address: string;
   erc8004Id: string;
   reputation: AgentReputation | null;
+  feedback: Feedback[];
   role: "worker" | "client" | "both";
   dealsAsWorker: Deal[];
   dealsAsClient: Deal[];
@@ -27,6 +28,7 @@ function buildAgentMap(deals: Deal[]): AgentSummary[] {
         address: addr,
         erc8004Id,
         reputation: null,
+        feedback: [],
         role,
         dealsAsWorker: [],
         dealsAsClient: [],
@@ -94,10 +96,15 @@ export default async function AgentsPage() {
   const deals = await getAllDeals().catch(() => []);
   const agents = buildAgentMap(deals);
 
-  // Fetch ERC-8004 reputation for each agent in parallel
+  // Fetch reputation + feedback for each agent in parallel
   await Promise.all(
     agents.map(async (agent) => {
-      agent.reputation = await getAgentReputation(agent.address).catch(() => null);
+      const [rep, fb] = await Promise.all([
+        getAgentReputation(agent.address).catch(() => null),
+        getAgentFeedback(agent.address).catch(() => []),
+      ]);
+      agent.reputation = rep;
+      agent.feedback = fb;
     })
   );
 
@@ -256,6 +263,49 @@ export default async function AgentsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Reputation feedback history */}
+        {agents.some((a) => a.feedback.length > 0) && (
+          <div className="mt-10">
+            <div className="font-mono text-xs text-[#3A4558] tracking-widest mb-6">
+              REPUTATION REVIEWS
+            </div>
+            <div className="space-y-4">
+              {agents.filter((a) => a.feedback.length > 0).map((agent) => (
+                <div key={agent.address} className="border border-[#1C2230] bg-[#0A0C11]">
+                  <div className="px-5 py-3 border-b border-[#1C2230] flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-[10px] text-[#7B8EA8]">{truncate(agent.address, 8)}</span>
+                      <RolePill role={agent.role} />
+                    </div>
+                    {agent.reputation?.score != null && (
+                      <span className={`font-mono text-sm font-bold ${agent.reputation.score >= 80 ? "text-[#22C55E]" : agent.reputation.score >= 50 ? "text-[#F0A500]" : "text-[#EF4444]"}`}>
+                        {agent.reputation.score}/100
+                      </span>
+                    )}
+                  </div>
+                  <div className="divide-y divide-[#0F1219]">
+                    {agent.feedback.map((fb, i) => (
+                      <div key={i} className="px-5 py-3 flex items-start gap-4">
+                        <div className={`font-mono text-sm font-bold flex-shrink-0 ${fb.score >= 80 ? "text-[#22C55E]" : fb.score >= 50 ? "text-[#F0A500]" : "text-[#EF4444]"}`}>
+                          {fb.score}/100
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          {fb.comment && (
+                            <div className="font-mono text-xs text-[#E8EFF8] mb-1">&quot;{fb.comment}&quot;</div>
+                          )}
+                          <div className="font-mono text-[10px] text-[#3A4558]">
+                            DEAL #{fb.dealId} · {truncate(fb.client)} · {timeAgo(fb.timestamp)}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

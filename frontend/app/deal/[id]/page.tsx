@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getDeal, truncate, timeAgo, formatDeadline } from "@/lib/contract";
 import StatusBadge from "@/components/StatusBadge";
 import ConfirmDeliveryButton from "@/components/ConfirmDeliveryButton";
+import DeliverablePreview from "@/components/DeliverablePreview";
 
 export const revalidate = 15;
 
@@ -184,28 +185,24 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
 
           {/* Delivery */}
           {deal.deliveredAt > 0 && (
-            <div className="border border-[#1C2230] bg-[#0A0C11]">
-              <div className="px-5 py-3 border-b border-[#1C2230]">
-                <span className="font-mono text-[10px] text-[#3A4558] tracking-widest">
-                  DELIVERY
-                </span>
+            <>
+              <DeliverablePreview deliveryURI={deal.deliveryURI} />
+              <div className="border border-[#1C2230] bg-[#0A0C11]">
+                <div className="px-5 py-3 border-b border-[#1C2230]">
+                  <span className="font-mono text-[10px] text-[#3A4558] tracking-widest">
+                    DELIVERY PROOF
+                  </span>
+                </div>
+                <div className="px-5 py-1">
+                  <Row
+                    label="DELIVERY HASH"
+                    value={
+                      <span className="text-[#3A4558] break-all">{deal.deliveryHash}</span>
+                    }
+                  />
+                </div>
               </div>
-              <div className="px-5 py-1">
-                {Object.keys(deliveryData).length > 0 ? (
-                  Object.entries(deliveryData).map(([k, v]) => (
-                    <Row key={k} label={k.toUpperCase()} value={String(v)} mono={false} />
-                  ))
-                ) : (
-                  <Row label="DELIVERY URI" value={deal.deliveryURI || "—"} />
-                )}
-                <Row
-                  label="DELIVERY HASH"
-                  value={
-                    <span className="text-[#3A4558] break-all">{deal.deliveryHash}</span>
-                  }
-                />
-              </div>
-            </div>
+            </>
           )}
 
           {/* ERC-8004 Identities */}

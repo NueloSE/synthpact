@@ -20,12 +20,59 @@ export const REPUTATION_ABI = [
       { name: "count", type: "uint256" },
     ],
   },
+  {
+    name: "getFeedback",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "worker", type: "address" }],
+    outputs: [
+      {
+        type: "tuple[]",
+        components: [
+          { name: "client", type: "address" },
+          { name: "score", type: "uint8" },
+          { name: "dealId", type: "uint256" },
+          { name: "comment", type: "string" },
+          { name: "timestamp", type: "uint256" },
+        ],
+      },
+    ],
+  },
 ] as const;
 
 export interface AgentReputation {
   address: string;
   score: number | null;
   feedbackCount: number;
+}
+
+export interface Feedback {
+  client: string;
+  score: number;
+  dealId: number;
+  comment: string;
+  timestamp: number;
+}
+
+export async function getAgentFeedback(walletAddress: string): Promise<Feedback[]> {
+  try {
+    const result = await client.readContract({
+      address: REPUTATION_CONTRACT,
+      abi: REPUTATION_ABI,
+      functionName: "getFeedback",
+      args: [walletAddress as `0x${string}`],
+    }) as Array<{ client: string; score: number; dealId: bigint; comment: string; timestamp: bigint }>;
+
+    return result.map((f) => ({
+      client: f.client,
+      score: f.score,
+      dealId: Number(f.dealId),
+      comment: f.comment,
+      timestamp: Number(f.timestamp),
+    }));
+  } catch {
+    return [];
+  }
 }
 
 export async function getAgentReputation(walletAddress: string): Promise<AgentReputation> {
