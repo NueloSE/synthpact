@@ -1,4 +1,4 @@
-import { getAllDeals, truncate, Deal } from "@/lib/contract";
+import { getAllDeals, truncate, Deal, getAgentReputation, AgentReputation } from "@/lib/contract";
 import StatusBadge from "@/components/StatusBadge";
 import Link from "next/link";
 
@@ -7,6 +7,7 @@ export const revalidate = 30;
 interface AgentSummary {
   address: string;
   erc8004Id: string;
+  reputation: AgentReputation | null;
   role: "worker" | "client" | "both";
   dealsAsWorker: Deal[];
   dealsAsClient: Deal[];
@@ -25,6 +26,7 @@ function buildAgentMap(deals: Deal[]): AgentSummary[] {
       map.set(key, {
         address: addr,
         erc8004Id,
+        reputation: null,
         role,
         dealsAsWorker: [],
         dealsAsClient: [],
@@ -92,6 +94,13 @@ export default async function AgentsPage() {
   const deals = await getAllDeals().catch(() => []);
   const agents = buildAgentMap(deals);
 
+  // Fetch ERC-8004 reputation for each agent in parallel
+  await Promise.all(
+    agents.map(async (agent) => {
+      agent.reputation = await getAgentReputation(agent.address).catch(() => null);
+    })
+  );
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -158,8 +167,8 @@ export default async function AgentsPage() {
         ) : (
           <div className="space-y-px border border-[#1C2230] overflow-hidden">
             {/* Table header */}
-            <div className="grid grid-cols-[1fr_90px_80px_80px_90px_90px_80px] gap-4 px-5 py-2 bg-[#0A0C11] border-b border-[#1C2230]">
-              {["AGENT", "ERC-8004 ID", "ROLE", "DEALS", "COMPLETED", "EARNED", "SPENT"].map((h) => (
+            <div className="grid grid-cols-[1fr_90px_80px_80px_90px_90px_80px_90px] gap-4 px-5 py-2 bg-[#0A0C11] border-b border-[#1C2230]">
+              {["AGENT", "ERC-8004 ID", "ROLE", "DEALS", "COMPLETED", "EARNED", "SPENT", "REPUTATION"].map((h) => (
                 <div key={h} className="font-mono text-[10px] text-[#3A4558] tracking-widest">
                   {h}
                 </div>
@@ -169,7 +178,7 @@ export default async function AgentsPage() {
             {agents.map((agent) => (
               <div
                 key={agent.address}
-                className="grid grid-cols-[1fr_90px_80px_80px_90px_90px_80px] gap-4 px-5 py-4 bg-[#050608] hover:bg-[#0A0C11] transition-colors items-start border-b border-[#0F1219] last:border-0"
+                className="grid grid-cols-[1fr_90px_80px_80px_90px_90px_80px_90px] gap-4 px-5 py-4 bg-[#050608] hover:bg-[#0A0C11] transition-colors items-start border-b border-[#0F1219] last:border-0"
               >
                 {/* Address + identity */}
                 <div>
@@ -218,6 +227,32 @@ export default async function AgentsPage() {
                 {/* Spent */}
                 <div className="font-mono text-xs text-[#E8EFF8]">
                   {agent.spentUsdc > 0 ? `$${agent.spentUsdc.toFixed(2)}` : "—"}
+                </div>
+
+                {/* Reputation */}
+                <div>
+                  {agent.reputation === null ? (
+                    <span className="font-mono text-[10px] text-[#3A4558]">—</span>
+                  ) : agent.reputation.score === null ? (
+                    <span className="font-mono text-[10px] text-[#3A4558]">NO SCORE</span>
+                  ) : (
+                    <div>
+                      <span
+                        className={`font-mono text-xs font-bold ${
+                          agent.reputation.score >= 80
+                            ? "text-[#22C55E]"
+                            : agent.reputation.score >= 50
+                            ? "text-[#F0A500]"
+                            : "text-[#EF4444]"
+                        }`}
+                      >
+                        {agent.reputation.score}/100
+                      </span>
+                      <div className="font-mono text-[10px] text-[#3A4558] mt-0.5">
+                        {agent.reputation.feedbackCount} review{agent.reputation.feedbackCount !== 1 ? "s" : ""}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

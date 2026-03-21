@@ -38,27 +38,41 @@ const USDC_ADDRESS     = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 
 // ─── Step 1: Register ERC-8004 identity ──────────────────────────────────────
 
+// Persisted token IDs
+let clientAgentTokenId: bigint | null = null;
+let workerTokenIdForFeedback: bigint | null = null;
+
 async function registerIdentity(): Promise<void> {
   console.log("\n[CLIENT] Step 1: Registering ERC-8004 identity...");
   const registry = getIdentityRegistry(wallet);
 
-  const metadataURI = `data:application/json,${JSON.stringify({
+  const agentURI = `data:application/json,${JSON.stringify({
     name: "SynthPact Client Agent",
     description: "Autonomous AI agent that hires workers for crypto market analysis tasks",
     version: "1.0.0",
     capabilities: ["task-delegation", "quality-verification", "reputation-scoring"],
     agentWallet: wallet.address,
     endpoint: "https://synthpact.vercel.app/agents/client",
-    erc8004: ERC8004_ID,
+    erc8004Id: ERC8004_ID,
   })}`;
 
   try {
-    const tx = await registry.register(CLIENT_NAMESPACE, CLIENT_AGENT_ID, metadataURI);
+    const tx = await registry.register(agentURI);
     const receipt = await tx.wait();
-    console.log(`[CLIENT] ✓ ERC-8004 identity registered | TX: ${receipt.hash}`);
-    appendLog({ step: "register_identity", agent: "client", erc8004Id: ERC8004_ID, tx: receipt.hash });
+    const iface = registry.interface;
+    for (const log of receipt.logs) {
+      try {
+        const parsed = iface.parseLog(log);
+        if (parsed?.name === "Registered") {
+          clientAgentTokenId = parsed.args.agentId;
+          break;
+        }
+      } catch {}
+    }
+    console.log(`[CLIENT] ✓ ERC-8004 identity registered | tokenId: ${clientAgentTokenId} | TX: ${receipt.hash}`);
+    appendLog({ step: "register_identity", agent: "client", erc8004Id: ERC8004_ID, tokenId: clientAgentTokenId?.toString(), tx: receipt.hash });
   } catch (err: any) {
-    if (err.message?.includes("already") || err.code === "CALL_EXCEPTION") {
+    if (err.code === "CALL_EXCEPTION" || err.message?.includes("already")) {
       console.log("[CLIENT] ✓ Identity already registered — continuing");
       appendLog({ step: "register_identity", agent: "client", erc8004Id: ERC8004_ID, status: "already_registered" });
     } else {
@@ -266,30 +280,65 @@ async function confirmDelivery(dealId: number): Promise<void> {
 
 // ─── Step 8: Submit ERC-8004 reputation feedback ─────────────────────────────
 
-async function submitReputation(dealId: number, score: number): Promise<void> {
+async function submitReputation(dealId: number, score: number, workerAddress: string): Promise<void> {
   console.log(`\n[CLIENT] Step 8: Submitting ERC-8004 reputation feedback...`);
   const reputationRegistry = getReputationRegistry(wallet);
+  const identityRegistry   = getIdentityRegistry(wallet);
 
-  const feedbackScore = Math.max(-100, Math.min(100, Math.round((score - 50) * 2))); // map 0-100 → -100 to +100
-  const evidenceURI   = `data:application/json,${JSON.stringify({
-    dealId, contract: process.env.SYNTHPACT_CONTRACT_ADDRESS, reviewer: wallet.address,
-    score: feedbackScore, comment: "Autonomous quality assessment by SynthPact client agent",
+  // Look up worker's token ID by scanning Registered events for their address
+  let workerTokenId: bigint | null = workerTokenIdForFeedback;
+  if (!workerTokenId) {
+    try {
+      // The worker's token ID is the one owned by their wallet
+      // We read the AgentWallet metadata to match — or fall back to token 0 based on balance
+      const bal = await identityRegistry.balanceOf(workerAddress);
+      if (bal > 0n) {
+        // Try ownerOf starting from 0 to find their token
+        for (let i = 0n; i < 20n; i++) {
+          try {
+            const owner = await identityRegistry.ownerOf(i);
+            if (owner.toLowerCase() === workerAddress.toLowerCase()) {
+              workerTokenId = i;
+              break;
+            }
+          } catch {}
+        }
+      }
+    } catch (e) {}
+  }
+
+  if (!workerTokenId && workerTokenId !== 0n) {
+    console.log("[CLIENT] ⚠ Could not determine worker ERC-8004 token ID — skipping reputation");
+    appendLog({ step: "reputation_skipped", agent: "client", reason: "worker tokenId not found" });
+    return;
+  }
+
+  const feedbackURI = `data:application/json,${JSON.stringify({
+    dealId,
+    contract: process.env.SYNTHPACT_CONTRACT_ADDRESS,
+    reviewer: wallet.address,
+    score,
+    comment: "Autonomous quality assessment by SynthPact client agent",
   })}`;
+  const feedbackHash = ethers.keccak256(ethers.toUtf8Bytes(feedbackURI));
 
   try {
-    const tx = await reputationRegistry.submitFeedback(
-      process.env.ERC8004_IDENTITY_REGISTRY!,
-      1, // worker's ERC-8004 token ID (token #1 for first registered agent)
-      feedbackScore,
-      "crypto-analysis,market-report",
-      evidenceURI
+    const tx = await reputationRegistry.giveFeedback(
+      workerTokenId,       // agentId — worker's ERC-8004 token ID
+      BigInt(score),       // value — score 0-100
+      0,                   // valueDecimals — score is a whole number
+      "crypto-analysis",   // tag1
+      "market-report",     // tag2
+      "https://synthpact.vercel.app", // endpoint
+      feedbackURI,
+      feedbackHash
     );
     const receipt = await tx.wait();
-    console.log(`[CLIENT] ✓ Reputation feedback submitted | Score: ${feedbackScore} | TX: ${receipt.hash}`);
-    appendLog({ step: "reputation_submitted", agent: "client", dealId, score: feedbackScore, tx: receipt.hash });
+    console.log(`[CLIENT] ✓ Reputation feedback submitted | Score: ${score}/100 | Worker tokenId: ${workerTokenId} | TX: ${receipt.hash}`);
+    appendLog({ step: "reputation_submitted", agent: "client", dealId, score, workerTokenId: workerTokenId.toString(), tx: receipt.hash });
   } catch (err: any) {
-    console.log(`[CLIENT] ⚠ Reputation submission skipped (${err.message?.slice(0, 60)})`);
-    appendLog({ step: "reputation_skipped", agent: "client", reason: err.message?.slice(0, 100) });
+    console.log(`[CLIENT] ⚠ Reputation submission failed: ${err.message?.slice(0, 100)}`);
+    appendLog({ step: "reputation_skipped", agent: "client", reason: err.message?.slice(0, 120) });
   }
 }
 
@@ -333,7 +382,7 @@ async function main() {
 
   if (approved) {
     await confirmDelivery(deal.id);
-    await submitReputation(deal.id, 85); // high score for successful delivery
+    await submitReputation(deal.id, 85, deal.worker); // high score for successful delivery
   } else {
     console.log("[CLIENT] ⚠ Delivery rejected by quality check. Waiting for deadline to claim refund.");
     appendLog({ step: "delivery_rejected", agent: "client", dealId: deal.id });

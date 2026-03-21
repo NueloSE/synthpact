@@ -35,19 +35,32 @@ export const USDC_ABI = [
   "function transfer(address to, uint256 amount) returns (bool)",
 ];
 
-// ─── ERC-8004 Identity Registry ABI (minimal) ───────────────────────────────
+// ─── ERC-8004 Identity Registry ABI (correct — erc-8004/erc-8004-contracts) ──
 
 export const IDENTITY_REGISTRY_ABI = [
-  "function register(string namespace, string agentId, string metadataURI) returns (uint256 tokenId)",
-  "function getRegistration(uint256 tokenId) view returns (string namespace, string agentId, string metadataURI, address owner)",
-  "function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)",
+  // register with a metadata URI, returns sequential agentId (uint256)
+  "function register(string agentURI) returns (uint256 agentId)",
+  // getters
+  "function getMetadata(uint256 agentId, string metadataKey) view returns (bytes)",
+  "function getAgentWallet(uint256 agentId) view returns (address)",
+  "function ownerOf(uint256 tokenId) view returns (address)",
   "function balanceOf(address owner) view returns (uint256)",
-  "event AgentRegistered(uint256 indexed tokenId, address indexed owner, string namespace, string agentId)",
+  "function tokenURI(uint256 tokenId) view returns (string)",
+  "function getVersion() view returns (string)",
+  "event Registered(uint256 indexed agentId, address indexed owner)",
 ];
 
 export const REPUTATION_REGISTRY_ABI = [
-  "function submitFeedback(address identityRegistry, uint256 tokenId, int8 score, string tags, string evidenceURI) returns (uint256 feedbackId)",
-  "event FeedbackSubmitted(uint256 indexed feedbackId, address indexed identityRegistry, uint256 indexed tokenId, address client, int8 score)",
+  // submit feedback — value is int128 with valueDecimals decimal places
+  // e.g. score 95/100 → value=95, valueDecimals=0
+  "function giveFeedback(uint256 agentId, int128 value, uint8 valueDecimals, string tag1, string tag2, string endpoint, string feedbackURI, bytes32 feedbackHash) returns (uint256 feedbackIndex)",
+  // read feedback summary for an agent
+  "function getSummary(uint256 agentId, address[] clientAddresses, string tag1, string tag2) view returns (uint64 count, int128 summaryValue, uint8 summaryValueDecimals)",
+  "function readFeedback(uint256 agentId, address clientAddress, uint64 feedbackIndex) view returns (int128 value, uint8 valueDecimals, string tag1, string tag2, bool isRevoked)",
+  "function getClients(uint256 agentId) view returns (address[])",
+  "function getIdentityRegistry() view returns (address)",
+  "function getVersion() view returns (string)",
+  "event NewFeedback(uint256 indexed agentId, address indexed clientAddress, uint64 feedbackIndex, int128 value, uint8 valueDecimals)",
 ];
 
 // ─── Contract instances ──────────────────────────────────────────────────────

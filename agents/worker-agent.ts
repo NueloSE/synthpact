@@ -45,29 +45,42 @@ const POLL_INTERVAL_MS  = 10_000; // poll every 10 seconds
 
 // ─── Step 1: Register ERC-8004 identity ──────────────────────────────────────
 
+// Persisted token ID so we can reference it later for reputation reads
+let workerAgentTokenId: bigint | null = null;
+
 async function registerIdentity(): Promise<string> {
   console.log("\n[WORKER] Step 1: Registering ERC-8004 identity...");
   const registry = getIdentityRegistry();
 
-  const metadataURI = `data:application/json,${JSON.stringify({
+  const agentURI = `data:application/json,${JSON.stringify({
     name: "SynthPact Worker Agent",
     description: "Autonomous AI agent specialising in crypto market analysis",
     version: "1.0.0",
     capabilities: ["market-analysis", "data-synthesis", "report-generation"],
     agentWallet: wallet.address,
     endpoint: "https://synthpact.vercel.app/agents/worker",
-    erc8004: ERC8004_ID,
+    erc8004Id: ERC8004_ID,
   })}`;
 
   try {
-    const tx = await registry.register(WORKER_NAMESPACE, WORKER_AGENT_ID, metadataURI);
+    const tx = await registry.register(agentURI);
     const receipt = await tx.wait();
-    console.log(`[WORKER] ✓ ERC-8004 identity registered | TX: ${receipt.hash}`);
-    appendLog({ step: "register_identity", agent: "worker", erc8004Id: ERC8004_ID, tx: receipt.hash });
+    // Parse agentId from Registered event
+    const iface = registry.interface;
+    for (const log of receipt.logs) {
+      try {
+        const parsed = iface.parseLog(log);
+        if (parsed?.name === "Registered") {
+          workerAgentTokenId = parsed.args.agentId;
+          break;
+        }
+      } catch {}
+    }
+    console.log(`[WORKER] ✓ ERC-8004 identity registered | tokenId: ${workerAgentTokenId} | TX: ${receipt.hash}`);
+    appendLog({ step: "register_identity", agent: "worker", erc8004Id: ERC8004_ID, tokenId: workerAgentTokenId?.toString(), tx: receipt.hash });
     return receipt.hash;
   } catch (err: any) {
-    // Already registered — continue
-    if (err.message?.includes("already") || err.code === "CALL_EXCEPTION") {
+    if (err.code === "CALL_EXCEPTION" || err.message?.includes("already")) {
       console.log("[WORKER] ✓ Identity already registered — continuing");
       appendLog({ step: "register_identity", agent: "worker", erc8004Id: ERC8004_ID, status: "already_registered" });
       return "already_registered";

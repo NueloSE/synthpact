@@ -6,6 +6,105 @@ export const client = createPublicClient({
   transport: http(process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org"),
 });
 
+export const REPUTATION_REGISTRY = "0x8004bd8daB57f14Ed299135749a5CB5c42d341BF" as `0x${string}`;
+export const IDENTITY_REGISTRY   = "0x8004AA63c570c570eBF15376c0dB199918BFe9Fb" as `0x${string}`;
+
+export const REPUTATION_ABI = [
+  {
+    name: "getSummary",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "agentId", type: "uint256" },
+      { name: "clientAddresses", type: "address[]" },
+      { name: "tag1", type: "string" },
+      { name: "tag2", type: "string" },
+    ],
+    outputs: [
+      { name: "count", type: "uint64" },
+      { name: "summaryValue", type: "int128" },
+      { name: "summaryValueDecimals", type: "uint8" },
+    ],
+  },
+  {
+    name: "getClients",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "agentId", type: "uint256" }],
+    outputs: [{ name: "", type: "address[]" }],
+  },
+] as const;
+
+export const IDENTITY_ABI = [
+  {
+    name: "ownerOf",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    name: "tokenURI",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    outputs: [{ name: "", type: "string" }],
+  },
+] as const;
+
+export interface AgentReputation {
+  tokenId: number;
+  address: string;
+  score: number | null;  // null = no feedback yet
+  feedbackCount: number;
+  clients: string[];
+}
+
+export async function getAgentReputation(walletAddress: string): Promise<AgentReputation | null> {
+  // Scan token IDs 0-50 to find one owned by this address
+  for (let tokenId = 0; tokenId < 50; tokenId++) {
+    try {
+      const owner = await client.readContract({
+        address: IDENTITY_REGISTRY,
+        abi: IDENTITY_ABI,
+        functionName: "ownerOf",
+        args: [BigInt(tokenId)],
+      });
+      if ((owner as string).toLowerCase() === walletAddress.toLowerCase()) {
+        // Found the token — now get reputation
+        const clients = await client.readContract({
+          address: REPUTATION_REGISTRY,
+          abi: REPUTATION_ABI,
+          functionName: "getClients",
+          args: [BigInt(tokenId)],
+        }) as string[];
+
+        if (clients.length === 0) {
+          return { tokenId, address: walletAddress, score: null, feedbackCount: 0, clients: [] };
+        }
+
+        const summary = await client.readContract({
+          address: REPUTATION_REGISTRY,
+          abi: REPUTATION_ABI,
+          functionName: "getSummary",
+          args: [BigInt(tokenId), clients as `0x${string}`[], "", ""],
+        }) as [bigint, bigint, number];
+
+        return {
+          tokenId,
+          address: walletAddress,
+          score: Number(summary[1]),
+          feedbackCount: Number(summary[0]),
+          clients,
+        };
+      }
+    } catch {
+      break; // ownerOf reverts on non-existent token — stop scanning
+    }
+  }
+  return null;
+}
+
 export const CONTRACT = "0x82f618d57E52BFFa84f4Bb4c398465FAe6f9d4B9" as `0x${string}`;
 
 export const ABI = [
