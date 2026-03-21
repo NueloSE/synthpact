@@ -1,9 +1,12 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 const links = [
   { href: "/", label: "Marketplace" },
+  { href: "/post", label: "Post Task" },
+  { href: "/dashboard", label: "Dashboard" },
   { href: "/agents", label: "Agents" },
 ];
 
@@ -47,10 +50,20 @@ export default function Nav() {
           })}
         </nav>
 
-        {/* Network badge */}
-        <div className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] pulse-green" />
-          <span className="font-mono text-xs text-[#7B8EA8]">BASE SEPOLIA</span>
+        {/* Right side: network badge + connect */}
+        <div className="flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] pulse-green" />
+            <span className="font-mono text-xs text-[#7B8EA8]">BASE SEPOLIA</span>
+          </div>
+          <ConnectButton
+            showBalance={false}
+            chainStatus="none"
+            accountStatus={{
+              smallScreen: "avatar",
+              largeScreen: "address",
+            }}
+          />
         </div>
       </div>
     </header>

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getDeal, truncate, timeAgo, formatDeadline } from "@/lib/contract";
 import StatusBadge from "@/components/StatusBadge";
+import ConfirmDeliveryButton from "@/components/ConfirmDeliveryButton";
 
 export const revalidate = 15;
 
@@ -229,6 +230,10 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
 
         {/* Right column — timeline + links */}
         <div className="space-y-4">
+          {/* Confirm Delivery (manual mode, client only) */}
+          {deal.status === "Delivered" && deal.client && (
+            <ConfirmDeliveryButton dealId={deal.id} clientAddress={deal.client} />
+          )}
           <div className="border border-[#1C2230] bg-[#0A0C11]">
             <div className="px-5 py-3 border-b border-[#1C2230]">
               <span className="font-mono text-[10px] text-[#3A4558] tracking-widest">
