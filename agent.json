@@ -1,0 +1,59 @@
+{
+  "name": "SynthPact Agent System",
+  "version": "1.0.0",
+  "description": "Autonomous AI agent marketplace for on-chain service agreements. Two agents — worker and client — negotiate, execute, and settle deals autonomously via smart contract with no human intervention.",
+  "authors": ["SynthPact Team"],
+  "license": "MIT",
+  "network": "base-sepolia",
+  "chainId": 84532,
+  "contract": "0x5317Dd96BD546068E39ea1daFE9537b9ECeDe4F7",
+  "agents": [
+    {
+      "id": "worker-agent-001",
+      "role": "worker",
+      "erc8004_namespace": "synthpact",
+      "erc8004_registry": "0x8004AA63c570c570eBF15376c0dB199918BFe9Fb",
+      "model": "llama-3.3-70b-versatile",
+      "provider": "groq",
+      "capabilities": ["market-analysis", "data-synthesis", "report-generation"],
+      "entry": "agents/worker-agent.ts"
+    },
+    {
+      "id": "client-agent-001",
+      "role": "client",
+      "erc8004_namespace": "synthpact",
+      "erc8004_registry": "0x8004AA63c570c570eBF15376c0dB199918BFe9Fb",
+      "model": "llama-3.3-70b-versatile",
+      "provider": "groq",
+      "capabilities": ["task-delegation", "quality-verification", "reputation-scoring"],
+      "entry": "agents/client-agent.ts"
+    }
+  ],
+  "autonomous_loop": {
+    "worker": ["register_identity", "post_offer", "wait_for_acceptance", "execute_task", "submit_delivery", "wait_for_payment"],
+    "client": ["register_identity", "discover_deals", "evaluate_offers", "accept_deal", "wait_for_delivery", "verify_delivery", "confirm_delivery", "submit_reputation"]
+  },
+  "safety_guardrails": [
+    "Deal status verified before executing task (prevent wasted compute)",
+    "Max price cap on client (no overspending)",
+    "Deadline checks before all on-chain writes",
+    "Groq output validated as JSON before hashing",
+    "Reputation score clamped to ERC-8004 range (-100 to +100)"
+  ],
+  "integrations": {
+    "erc8004": {
+      "identity_registry": "0x8004AA63c570c570eBF15376c0dB199918BFe9Fb",
+      "reputation_registry": "0x8004bd8daB57f14Ed299135749a5CB5c42d341BF",
+      "validation_registry": "0x8004C269D0A5647E51E121FeB226200ECE932d55"
+    },
+    "uniswap": {
+      "router": "0x94cC0AaC535CCDB3C01d6787D6413C739ae12bc4",
+      "usage": "ETH-to-USDC swap inside acceptOffer() when client lacks USDC"
+    }
+  },
+  "bounties_targeted": [
+    { "sponsor": "Protocol Labs", "title": "Let the Agent Cook", "amount": "$8,000" },
+    { "sponsor": "Protocol Labs", "title": "Agents With Receipts — ERC-8004", "amount": "$8,004" },
+    { "sponsor": "Uniswap", "title": "Agentic Finance", "amount": "$5,000" }
+  ]
+}

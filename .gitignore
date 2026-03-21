@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+agents/node_modules/
+
+# Build artifacts
+artifacts/
+cache/
+typechain-types/
+frontend/.next/
+frontend/out/
+
+# Environment — NEVER commit
+.env
+.env.local
+.env*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+
+# TypeScript
+*.tsbuildinfo
