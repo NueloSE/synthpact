@@ -45,8 +45,7 @@ const POLL_INTERVAL_MS  = 10_000; // poll every 10 seconds
 
 // ─── Step 1: Register ERC-8004 identity ──────────────────────────────────────
 
-// Persisted token ID so we can reference it later for reputation reads
-let workerAgentTokenId: bigint | null = null;
+const TOKEN_ID_FILE = path.resolve(__dirname, "../.worker-tokenid");
 
 async function registerIdentity(): Promise<string> {
   console.log("\n[WORKER] Step 1: Registering ERC-8004 identity...");
@@ -63,26 +62,22 @@ async function registerIdentity(): Promise<string> {
   })}`;
 
   try {
+    // staticCall first to get the return value (tokenId) without spending gas on a failed read
+    const tokenId: bigint = await registry.register.staticCall(agentURI);
+    // Now send the real tx
     const tx = await registry.register(agentURI);
     const receipt = await tx.wait();
-    // Parse agentId from Registered event
-    const iface = registry.interface;
-    for (const log of receipt.logs) {
-      try {
-        const parsed = iface.parseLog(log);
-        if (parsed?.name === "Registered") {
-          workerAgentTokenId = parsed.args.agentId;
-          break;
-        }
-      } catch {}
-    }
-    console.log(`[WORKER] ✓ ERC-8004 identity registered | tokenId: ${workerAgentTokenId} | TX: ${receipt.hash}`);
-    appendLog({ step: "register_identity", agent: "worker", erc8004Id: ERC8004_ID, tokenId: workerAgentTokenId?.toString(), tx: receipt.hash });
+    // Persist tokenId to file so client agent can read it
+    fs.writeFileSync(TOKEN_ID_FILE, tokenId.toString());
+    console.log(`[WORKER] ✓ ERC-8004 identity registered | tokenId: ${tokenId} | TX: ${receipt.hash}`);
+    appendLog({ step: "register_identity", agent: "worker", erc8004Id: ERC8004_ID, tokenId: tokenId.toString(), tx: receipt.hash });
     return receipt.hash;
   } catch (err: any) {
     if (err.code === "CALL_EXCEPTION" || err.message?.includes("already")) {
-      console.log("[WORKER] ✓ Identity already registered — continuing");
-      appendLog({ step: "register_identity", agent: "worker", erc8004Id: ERC8004_ID, status: "already_registered" });
+      // Already registered — read tokenId from file if available
+      const savedId = fs.existsSync(TOKEN_ID_FILE) ? fs.readFileSync(TOKEN_ID_FILE, "utf8").trim() : "unknown";
+      console.log(`[WORKER] ✓ Identity already registered | tokenId: ${savedId}`);
+      appendLog({ step: "register_identity", agent: "worker", erc8004Id: ERC8004_ID, tokenId: savedId, status: "already_registered" });
       return "already_registered";
     }
     throw err;

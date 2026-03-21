@@ -17,6 +17,7 @@ import Groq from "groq-sdk";
 import { ethers } from "ethers";
 import * as dotenv from "dotenv";
 import * as path from "path";
+import * as fs from "fs";
 import {
   getSynthPact, getUSDC, getIdentityRegistry, getReputationRegistry,
   DealStatus, STATUS_LABELS,
@@ -38,9 +39,7 @@ const USDC_ADDRESS     = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 
 // ─── Step 1: Register ERC-8004 identity ──────────────────────────────────────
 
-// Persisted token IDs
-let clientAgentTokenId: bigint | null = null;
-let workerTokenIdForFeedback: bigint | null = null;
+const WORKER_TOKEN_ID_FILE = path.resolve(__dirname, "../.worker-tokenid");
 
 async function registerIdentity(): Promise<void> {
   console.log("\n[CLIENT] Step 1: Registering ERC-8004 identity...");
@@ -57,20 +56,11 @@ async function registerIdentity(): Promise<void> {
   })}`;
 
   try {
+    const tokenId: bigint = await registry.register.staticCall(agentURI);
     const tx = await registry.register(agentURI);
     const receipt = await tx.wait();
-    const iface = registry.interface;
-    for (const log of receipt.logs) {
-      try {
-        const parsed = iface.parseLog(log);
-        if (parsed?.name === "Registered") {
-          clientAgentTokenId = parsed.args.agentId;
-          break;
-        }
-      } catch {}
-    }
-    console.log(`[CLIENT] ✓ ERC-8004 identity registered | tokenId: ${clientAgentTokenId} | TX: ${receipt.hash}`);
-    appendLog({ step: "register_identity", agent: "client", erc8004Id: ERC8004_ID, tokenId: clientAgentTokenId?.toString(), tx: receipt.hash });
+    console.log(`[CLIENT] ✓ ERC-8004 identity registered | tokenId: ${tokenId} | TX: ${receipt.hash}`);
+    appendLog({ step: "register_identity", agent: "client", erc8004Id: ERC8004_ID, tokenId: tokenId.toString(), tx: receipt.hash });
   } catch (err: any) {
     if (err.code === "CALL_EXCEPTION" || err.message?.includes("already")) {
       console.log("[CLIENT] ✓ Identity already registered — continuing");
@@ -280,38 +270,24 @@ async function confirmDelivery(dealId: number): Promise<void> {
 
 // ─── Step 8: Submit ERC-8004 reputation feedback ─────────────────────────────
 
-async function submitReputation(dealId: number, score: number, workerAddress: string): Promise<void> {
+async function submitReputation(dealId: number, score: number, _workerAddress: string): Promise<void> {
   console.log(`\n[CLIENT] Step 8: Submitting ERC-8004 reputation feedback...`);
   const reputationRegistry = getReputationRegistry(wallet);
-  const identityRegistry   = getIdentityRegistry(wallet);
 
-  // Look up worker's token ID by scanning Registered events for their address
-  let workerTokenId: bigint | null = workerTokenIdForFeedback;
-  if (!workerTokenId) {
-    try {
-      // The worker's token ID is the one owned by their wallet
-      // We read the AgentWallet metadata to match — or fall back to token 0 based on balance
-      const bal = await identityRegistry.balanceOf(workerAddress);
-      if (bal > 0n) {
-        // Try ownerOf starting from 0 to find their token
-        for (let i = 0n; i < 20n; i++) {
-          try {
-            const owner = await identityRegistry.ownerOf(i);
-            if (owner.toLowerCase() === workerAddress.toLowerCase()) {
-              workerTokenId = i;
-              break;
-            }
-          } catch {}
-        }
-      }
-    } catch (e) {}
+  // Read worker tokenId written by worker-agent.ts on registration
+  let workerTokenId: bigint | null = null;
+  if (fs.existsSync(WORKER_TOKEN_ID_FILE)) {
+    const raw = fs.readFileSync(WORKER_TOKEN_ID_FILE, "utf8").trim();
+    if (raw && raw !== "unknown") workerTokenId = BigInt(raw);
   }
 
-  if (!workerTokenId && workerTokenId !== 0n) {
-    console.log("[CLIENT] ⚠ Could not determine worker ERC-8004 token ID — skipping reputation");
-    appendLog({ step: "reputation_skipped", agent: "client", reason: "worker tokenId not found" });
+  if (workerTokenId === null) {
+    console.log("[CLIENT] ⚠ Worker ERC-8004 tokenId not found (.worker-tokenid missing) — skipping reputation");
+    appendLog({ step: "reputation_skipped", agent: "client", reason: "worker tokenId file not found" });
     return;
   }
+
+  console.log(`[CLIENT] Worker ERC-8004 tokenId: ${workerTokenId}`);
 
   const feedbackURI = `data:application/json,${JSON.stringify({
     dealId,
