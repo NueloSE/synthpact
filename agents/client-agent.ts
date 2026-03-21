@@ -270,48 +270,17 @@ async function confirmDelivery(dealId: number): Promise<void> {
 
 // ─── Step 8: Submit ERC-8004 reputation feedback ─────────────────────────────
 
-async function submitReputation(dealId: number, score: number, _workerAddress: string): Promise<void> {
-  console.log(`\n[CLIENT] Step 8: Submitting ERC-8004 reputation feedback...`);
+async function submitReputation(dealId: number, score: number, workerAddress: string): Promise<void> {
+  console.log(`\n[CLIENT] Step 8: Submitting on-chain reputation feedback...`);
   const reputationRegistry = getReputationRegistry(wallet);
 
-  // Read worker tokenId written by worker-agent.ts on registration
-  let workerTokenId: bigint | null = null;
-  if (fs.existsSync(WORKER_TOKEN_ID_FILE)) {
-    const raw = fs.readFileSync(WORKER_TOKEN_ID_FILE, "utf8").trim();
-    if (raw && raw !== "unknown") workerTokenId = BigInt(raw);
-  }
-
-  if (workerTokenId === null) {
-    console.log("[CLIENT] ⚠ Worker ERC-8004 tokenId not found (.worker-tokenid missing) — skipping reputation");
-    appendLog({ step: "reputation_skipped", agent: "client", reason: "worker tokenId file not found" });
-    return;
-  }
-
-  console.log(`[CLIENT] Worker ERC-8004 tokenId: ${workerTokenId}`);
-
-  const feedbackURI = `data:application/json,${JSON.stringify({
-    dealId,
-    contract: process.env.SYNTHPACT_CONTRACT_ADDRESS,
-    reviewer: wallet.address,
-    score,
-    comment: "Autonomous quality assessment by SynthPact client agent",
-  })}`;
-  const feedbackHash = ethers.keccak256(ethers.toUtf8Bytes(feedbackURI));
+  const comment = `Autonomous quality assessment by SynthPact client agent. Groq verification score: ${score}/100.`;
 
   try {
-    const tx = await reputationRegistry.giveFeedback(
-      workerTokenId,       // agentId — worker's ERC-8004 token ID
-      BigInt(score),       // value — score 0-100
-      0,                   // valueDecimals — score is a whole number
-      "crypto-analysis",   // tag1
-      "market-report",     // tag2
-      "https://synthpact.vercel.app", // endpoint
-      feedbackURI,
-      feedbackHash
-    );
+    const tx = await reputationRegistry.giveFeedback(workerAddress, score, dealId, comment);
     const receipt = await tx.wait();
-    console.log(`[CLIENT] ✓ Reputation feedback submitted | Score: ${score}/100 | Worker tokenId: ${workerTokenId} | TX: ${receipt.hash}`);
-    appendLog({ step: "reputation_submitted", agent: "client", dealId, score, workerTokenId: workerTokenId.toString(), tx: receipt.hash });
+    console.log(`[CLIENT] ✓ Reputation feedback submitted | Score: ${score}/100 | Worker: ${workerAddress} | TX: ${receipt.hash}`);
+    appendLog({ step: "reputation_submitted", agent: "client", dealId, score, workerAddress, tx: receipt.hash });
   } catch (err: any) {
     console.log(`[CLIENT] ⚠ Reputation submission failed: ${err.message?.slice(0, 100)}`);
     appendLog({ step: "reputation_skipped", agent: "client", reason: err.message?.slice(0, 120) });

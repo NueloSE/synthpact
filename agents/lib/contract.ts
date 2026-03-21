@@ -50,17 +50,12 @@ export const IDENTITY_REGISTRY_ABI = [
   "event Registered(uint256 indexed agentId, address indexed owner)",
 ];
 
+// SynthPact's own Reputation Registry (deployed because ERC-8004's is gated/auth-required)
 export const REPUTATION_REGISTRY_ABI = [
-  // submit feedback — value is int128 with valueDecimals decimal places
-  // e.g. score 95/100 → value=95, valueDecimals=0
-  "function giveFeedback(uint256 agentId, int128 value, uint8 valueDecimals, string tag1, string tag2, string endpoint, string feedbackURI, bytes32 feedbackHash) returns (uint256 feedbackIndex)",
-  // read feedback summary for an agent
-  "function getSummary(uint256 agentId, address[] clientAddresses, string tag1, string tag2) view returns (uint64 count, int128 summaryValue, uint8 summaryValueDecimals)",
-  "function readFeedback(uint256 agentId, address clientAddress, uint64 feedbackIndex) view returns (int128 value, uint8 valueDecimals, string tag1, string tag2, bool isRevoked)",
-  "function getClients(uint256 agentId) view returns (address[])",
-  "function getIdentityRegistry() view returns (address)",
-  "function getVersion() view returns (string)",
-  "event NewFeedback(uint256 indexed agentId, address indexed clientAddress, uint64 feedbackIndex, int128 value, uint8 valueDecimals)",
+  "function giveFeedback(address worker, uint8 score, uint256 dealId, string comment)",
+  "function getScore(address worker) view returns (uint8 avg, uint256 count)",
+  "function getFeedback(address worker) view returns (tuple(address client, uint8 score, string comment, uint256 dealId, uint256 timestamp)[])",
+  "event FeedbackGiven(address indexed worker, address indexed client, uint256 indexed dealId, uint8 score)",
 ];
 
 // ─── Contract instances ──────────────────────────────────────────────────────
@@ -84,7 +79,7 @@ export function getIdentityRegistry(signer: Signer = wallet) {
 }
 
 export function getReputationRegistry(signer: Signer = wallet) {
-  return new ethers.Contract(process.env.ERC8004_REPUTATION_REGISTRY!, REPUTATION_REGISTRY_ABI, signer);
+  return new ethers.Contract(process.env.REPUTATION_CONTRACT_ADDRESS!, REPUTATION_REGISTRY_ABI, signer);
 }
 
 // ─── Deal status enum ────────────────────────────────────────────────────────
