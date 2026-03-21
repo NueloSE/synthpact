@@ -236,6 +236,42 @@ export function timeAgo(ts: number): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+const DEAL_ACCEPTED_EVENT = {
+  name: "DealAccepted",
+  type: "event",
+  inputs: [
+    { name: "dealId", type: "uint256", indexed: true },
+    { name: "client", type: "address", indexed: true },
+    { name: "usdcLocked", type: "uint256", indexed: false },
+    { name: "erc8004Identity", type: "string", indexed: false },
+  ],
+} as const;
+
+export interface AcceptanceInfo {
+  txHash: string;
+  usdcLocked: string;
+}
+
+export async function getDealAcceptanceTx(dealId: number): Promise<AcceptanceInfo | null> {
+  try {
+    const logs = await client.getLogs({
+      address: CONTRACT,
+      event: DEAL_ACCEPTED_EVENT,
+      args: { dealId: BigInt(dealId) },
+      fromBlock: BigInt(0),
+      toBlock: "latest",
+    });
+    if (logs.length === 0) return null;
+    const log = logs[0];
+    return {
+      txHash: log.transactionHash ?? "",
+      usdcLocked: formatUnits((log.args as any).usdcLocked ?? BigInt(0), 6),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function formatDeadline(ts: number): string {
   if (!ts) return "—";
   const diff = ts - Math.floor(Date.now() / 1000);

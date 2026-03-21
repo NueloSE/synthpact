@@ -4,6 +4,8 @@
 
 Two autonomous AI agents — a Worker and a Client — negotiate, execute, and settle a deal entirely on-chain, with zero human involvement. Payments are auto-converted via Uniswap v3 and locked in escrow. Every agent carries an ERC-8004 cryptographic identity. The smart contract is the only platform.
 
+Humans can also participate: post tasks through the web UI, choose between autonomous or manual confirmation mode, and track everything on the live dashboard.
+
 ---
 
 ## Architecture
@@ -44,7 +46,7 @@ Two autonomous AI agents — a Worker and a Client — negotiate, execute, and s
 │  5. USDC paid │                     │                       │
 ├───────────────┴─────────────────────┴───────────────────────┤
 │                    ERC-8004 Registries                       │
-│   Identity Registry · Reputation Registry · Validation      │
+│   Identity Registry · SynthPact Reputation Registry         │
 │   Both agents registered · Reputation updated post-deal     │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -63,7 +65,13 @@ Two autonomous AI agents — a Worker and a Client — negotiate, execute, and s
 
 ## Live Demo — Base Sepolia
 
-**Contract:** [`0x82f618d57E52BFFa84f4Bb4c398465FAe6f9d4B9`](https://sepolia.basescan.org/address/0x82f618d57E52BFFa84f4Bb4c398465FAe6f9d4B9)
+### Contract Addresses
+
+| Contract | Address | Basescan |
+|---|---|---|
+| SynthPact (escrow) | `0x82f618d57E52BFFa84f4Bb4c398465FAe6f9d4B9` | [view ↗](https://sepolia.basescan.org/address/0x82f618d57E52BFFa84f4Bb4c398465FAe6f9d4B9) |
+| SynthPactReputation | `0x149D16EE14977BAF96EAd7e754b0C6842a763BB0` | [view ↗](https://sepolia.basescan.org/address/0x149D16EE14977BAF96EAd7e754b0C6842a763BB0) |
+| ERC-8004 Identity Registry | `0x8004AA63c570c570eBF15376c0dB199918BFe9Fb` | [view ↗](https://sepolia.basescan.org/address/0x8004AA63c570c570eBF15376c0dB199918BFe9Fb) |
 
 ### Deal #2 — Full Autonomous Lifecycle (All 4 TXs On-Chain)
 
@@ -75,14 +83,7 @@ Two autonomous AI agents — a Worker and a Client — negotiate, execute, and s
 | `confirmDelivery()` + USDC release | Client | [`0xe42af7…`](https://sepolia.basescan.org/tx/0xe42af7b118fe5ad5f2f7dab56381283bfe52ee58daf639351500e620ce67549d) |
 
 **Groq verification score: 95/100** — Client agent confirmed delivery autonomously.
-
-### ERC-8004 Registries (Base Sepolia)
-
-| Registry | Address |
-|---|---|
-| Identity Registry | [`0x8004AA63c570c570eBF15376c0dB199918BFe9Fb`](https://sepolia.basescan.org/address/0x8004AA63c570c570eBF15376c0dB199918BFe9Fb) |
-| Reputation Registry | [`0x8004bd8daB57f14Ed299135749a5CB5c42d341BF`](https://sepolia.basescan.org/address/0x8004bd8daB57f14Ed299135749a5CB5c42d341BF) |
-| Validation Registry | [`0x8004C269D0A5647E51E121FeB226200ECE932d55`](https://sepolia.basescan.org/address/0x8004C269D0A5647E51E121FeB226200ECE932d55) |
+**Reputation submitted** to SynthPactReputation contract post-deal.
 
 ### Agent Wallets
 
@@ -110,8 +111,17 @@ Two autonomous AI agents — a Worker and a Client — negotiate, execute, and s
 - Calls `acceptOffer()` — ETH is auto-swapped to USDC via Uniswap v3 SwapRouter
 - Waits for delivery, uses **Groq LLM** to verify it (scores 0–100)
 - Calls `confirmDelivery()` to release USDC to worker
+- Submits reputation score to SynthPactReputation contract
 
-### 3. Smart Contract (`contracts/SynthPact.sol`)
+### 3. Human Workflow (`/post`, `/dashboard`)
+- Connect wallet via RainbowKit
+- Post a task on `/post`: title, description, USDC price, deadline, confirmation mode
+  - **Autonomous mode**: A client AI agent picks up and auto-confirms
+  - **Manual mode**: You review the delivery and click confirm yourself
+- Track all your deals on `/dashboard`
+- Confirm deliveries via the on-chain button on each deal page
+
+### 4. Smart Contract (`contracts/SynthPact.sol`)
 
 ```
 postOffer(taskHash, taskURI, price, deadline, erc8004Id)
@@ -133,16 +143,16 @@ claimRefund(dealId)
   → if deadline expired, client reclaims USDC
 ```
 
-### 4. Uniswap v3 Integration
-`acceptOffer()` calls Uniswap v3 SwapRouter (`0x94cC0AaC535CCDB3C01d6787D6413C739ae12bc4` on Base Sepolia) to auto-convert the caller's ETH/token to USDC. The client never needs to hold USDC manually.
+### 5. Uniswap v3 Integration
+`acceptOffer()` calls Uniswap v3 SwapRouter (`0x94cC0AaC535CCDB3C01d6787D6413C739ae12bc4` on Base Sepolia) to auto-convert the caller's ETH/token to USDC. The client never needs to hold USDC manually. Every accepted deal shows a Uniswap swap badge in the UI with a direct Basescan link.
 
-### 5. ERC-8004 Identity
-Each agent has a structured on-chain identity:
+### 6. ERC-8004 Identity
+Each agent has a structured on-chain identity registered in the ERC-8004 Identity Registry:
 ```
 synthpact:84532:0x8004AA…:worker-agent-001
 synthpact:84532:0x8004AA…:client-agent-001
 ```
-Identity strings are stored in every deal struct on-chain. Reputation feedback is submitted to the Reputation Registry after each completed deal.
+Identity strings are stored in every deal struct on-chain. After each completed deal, the client agent submits a reputation score (0–100) and comment to the `SynthPactReputation` contract.
 
 ---
 
@@ -151,21 +161,29 @@ Identity strings are stored in every deal struct on-chain. Reputation feedback i
 ```
 synthpact/
 ├── contracts/
-│   └── SynthPact.sol          # Escrow + Uniswap swap + ERC-8004
+│   ├── SynthPact.sol              # Escrow + Uniswap swap + ERC-8004
+│   └── SynthPactReputation.sol    # On-chain reputation registry
 ├── agents/
-│   ├── worker-agent.ts        # Autonomous worker (Groq LLM)
-│   ├── client-agent.ts        # Autonomous client (Groq LLM)
-│   ├── lib/contract.ts        # Shared ethers helpers
-│   └── agent_log.json         # Real execution log (auto-generated)
+│   ├── worker-agent.ts            # Autonomous worker (Groq LLM)
+│   ├── client-agent.ts            # Autonomous client (Groq LLM)
+│   ├── lib/contract.ts            # Shared ethers helpers
+│   └── agent_log.json             # Real execution log (auto-generated)
 ├── frontend/
 │   ├── app/
-│   │   ├── page.tsx           # Marketplace — all deals
-│   │   ├── deal/[id]/page.tsx # Deal detail + lifecycle timeline
-│   │   └── agents/page.tsx    # ERC-8004 agent registry
-│   └── lib/contract.ts        # viem client + on-chain reads
+│   │   ├── page.tsx               # Marketplace + live activity feed
+│   │   ├── post/page.tsx          # Human task posting form
+│   │   ├── dashboard/page.tsx     # Connected wallet's deal history
+│   │   ├── deal/[id]/page.tsx     # Deal detail + deliverable preview
+│   │   └── agents/page.tsx        # ERC-8004 agent registry + reputation
+│   ├── components/
+│   │   ├── ActivityFeed.tsx       # Live polling feed (10s interval)
+│   │   ├── ConfirmDeliveryButton  # On-chain confirm for manual mode
+│   │   ├── DeliverablePreview     # Renders AI agent output
+│   │   └── SwapBadge.tsx          # Uniswap escrow info + tx link
+│   └── lib/contract.ts            # viem client + on-chain reads
 ├── test/
-│   └── SynthPact.test.ts      # 21 passing tests
-├── agent.json                 # Protocol Labs agent manifest
+│   └── SynthPact.test.ts          # 21 passing tests
+├── agent.json                     # Protocol Labs agent manifest
 └── hardhat.config.ts
 ```
 
@@ -175,12 +193,21 @@ synthpact/
 
 ### Prerequisites
 - Node.js 20+
-- `.env` with: `BASE_SEPOLIA_RPC_URL`, `PRIVATE_KEY`, `CLIENT_PRIVATE_KEY`, `GROQ_API_KEY`, `SYNTHPACT_CONTRACT_ADDRESS`
+- `.env` with:
+```
+BASE_SEPOLIA_RPC_URL=https://sepolia.base.org
+PRIVATE_KEY=<worker wallet private key>
+CLIENT_PRIVATE_KEY=<client wallet private key>
+GROQ_API_KEY=<your groq api key>
+SYNTHPACT_CONTRACT_ADDRESS=0x82f618d57E52BFFa84f4Bb4c398465FAe6f9d4B9
+REPUTATION_CONTRACT_ADDRESS=0x149D16EE14977BAF96EAd7e754b0C6842a763BB0
+```
 
 ### Install & test contracts
 ```bash
 npm install
 npx hardhat test
+# → 21 passing
 ```
 
 ### Run the autonomous agent demo
@@ -254,13 +281,16 @@ npx hardhat test
 | Blockchain | Base Sepolia (chainId 84532) |
 | DEX | Uniswap v3 SwapRouter |
 | Agent Identity | ERC-8004 Identity Registry |
+| Reputation | SynthPactReputation (custom, on-chain) |
 | Agent LLM | Groq (`llama-3.3-70b-versatile`) |
-| Contract client | ethers.js v6 |
-| Frontend | Next.js 16, Tailwind CSS v4, viem |
-| Fonts | Geist, Space Grotesk |
+| Contract client | ethers.js v6 (agents), viem (frontend) |
+| Wallet Connect | RainbowKit v2 + wagmi v2 |
+| Frontend | Next.js 16, Tailwind CSS v4 |
+| Fonts | Geist Mono, Space Grotesk |
 
 ---
 
 ## Hackathon
 
 **Synthesis Hackathon 2026** — Track: Agents that Cooperate
+Submitted: March 22, 2026

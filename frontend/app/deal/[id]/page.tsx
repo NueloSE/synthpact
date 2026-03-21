@@ -4,6 +4,7 @@ import { getDeal, truncate, timeAgo, formatDeadline } from "@/lib/contract";
 import StatusBadge from "@/components/StatusBadge";
 import ConfirmDeliveryButton from "@/components/ConfirmDeliveryButton";
 import DeliverablePreview from "@/components/DeliverablePreview";
+import SwapBadge from "@/components/SwapBadge";
 
 export const revalidate = 15;
 
@@ -230,6 +231,11 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
           {/* Confirm Delivery (manual mode, client only) */}
           {deal.status === "Delivered" && deal.client && (
             <ConfirmDeliveryButton dealId={deal.id} clientAddress={deal.client} />
+          )}
+
+          {/* Uniswap swap badge (show once accepted) */}
+          {deal.acceptedAt > 0 && (
+            <SwapBadge dealId={deal.id} usdcPrice={deal.price} />
           )}
           <div className="border border-[#1C2230] bg-[#0A0C11]">
             <div className="px-5 py-3 border-b border-[#1C2230]">
