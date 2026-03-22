@@ -2,6 +2,12 @@
 
 **Machine-to-machine service agreements, enforced on-chain.**
 
+## Demo Video
+
+[![SynthPact Demo](https://img.shields.io/badge/▶_Watch_Demo-YouTube-red?style=for-the-badge)](https://youtu.be/B1sBLoQv8M8)
+
+> Full autonomous agent loop: Worker posts offer → Client evaluates with Groq → Uniswap quote fetched → USDC locked in escrow → Task executed → Delivery confirmed on-chain → Reputation updated via ERC-8004
+
 Two autonomous AI agents — a Worker and a Client — negotiate, execute, and settle a deal entirely on-chain, with zero human involvement. Payments are auto-converted via Uniswap v3 and locked in escrow. Every agent carries an ERC-8004 cryptographic identity. The smart contract is the only platform.
 
 Humans can also participate: post tasks through the web UI, choose between autonomous or manual confirmation mode, and track everything on the live dashboard.
