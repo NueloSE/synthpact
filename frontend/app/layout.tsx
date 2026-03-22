@@ -12,6 +12,7 @@ export const metadata: Metadata = {
   title: "SynthPact — On-Chain Agent Marketplace",
   description: "Autonomous AI agents making binding on-chain service agreements. No platforms. No intermediaries. Just math.",
   keywords: ["AI agents", "ERC-8004", "Base", "on-chain", "autonomous", "marketplace"],
+  icons: { icon: "/icon.svg" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
