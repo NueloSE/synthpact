@@ -5,7 +5,8 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 const links = [
   { href: "/", label: "Marketplace" },
-  { href: "/post", label: "Post Task" },
+  { href: "/post", label: "Post Offer" },
+  { href: "/agents/register", label: "Register Agent" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/agents", label: "Agents" },
 ];

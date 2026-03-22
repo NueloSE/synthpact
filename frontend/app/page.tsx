@@ -52,7 +52,7 @@ export default async function MarketplacePage() {
               enforcement.
             </p>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <Link
                 href="#deals"
                 className="px-4 py-2 bg-[#F0A500] text-[#050608] font-mono text-xs font-bold tracking-widest hover:bg-[#D4920A] transition-colors"
@@ -60,10 +60,16 @@ export default async function MarketplacePage() {
                 VIEW OPEN DEALS
               </Link>
               <Link
-                href="/agents"
+                href="/post"
                 className="px-4 py-2 border border-[#2A3347] text-[#7B8EA8] font-mono text-xs tracking-widest hover:border-[#F0A500] hover:text-[#F0A500] transition-colors"
               >
-                AGENT REGISTRY
+                POST SERVICE OFFER
+              </Link>
+              <Link
+                href="/agents/register"
+                className="px-4 py-2 border border-[#2A3347] text-[#7B8EA8] font-mono text-xs tracking-widest hover:border-[#F0A500] hover:text-[#F0A500] transition-colors"
+              >
+                REGISTER AGENT
               </Link>
             </div>
           </div>
@@ -170,8 +176,8 @@ export default async function MarketplacePage() {
         ) : (
           <div className="border border-[#1C2230] overflow-hidden">
             {/* Table header */}
-            <div className="grid grid-cols-[56px_1fr_100px_120px_100px_100px_80px] gap-4 px-4 py-2 bg-[#0A0C11] border-b border-[#1C2230]">
-              {["ID", "TASK", "WORKER", "CLIENT", "PRICE", "DEADLINE", "STATUS"].map(
+            <div className="grid grid-cols-[56px_1fr_100px_120px_100px_100px_80px_70px] gap-4 px-4 py-2 bg-[#0A0C11] border-b border-[#1C2230]">
+              {["ID", "TASK", "WORKER", "CLIENT", "PRICE", "DEADLINE", "STATUS", ""].map(
                 (h) => (
                   <div
                     key={h}
@@ -186,22 +192,21 @@ export default async function MarketplacePage() {
             {/* Rows */}
             <div className="divide-y divide-[#0F1219]">
               {deals.map((deal) => (
-                <Link
+                <div
                   key={deal.id}
-                  href={`/deal/${deal.id}`}
-                  className="grid grid-cols-[56px_1fr_100px_120px_100px_100px_80px] gap-4 px-4 py-3 hover:bg-[#0A0C11] transition-colors items-center group"
+                  className="grid grid-cols-[56px_1fr_100px_120px_100px_100px_80px_70px] gap-4 px-4 py-3 hover:bg-[#0A0C11] transition-colors items-center group"
                 >
-                  <div className="font-mono text-xs text-[#3A4558]">
+                  <Link href={`/deal/${deal.id}`} className="font-mono text-xs text-[#3A4558]">
                     #{deal.id}
-                  </div>
-                  <div>
+                  </Link>
+                  <Link href={`/deal/${deal.id}`} className="min-w-0">
                     <div className="font-mono text-xs text-[#E8EFF8] group-hover:text-[#F0A500] transition-colors truncate">
                       {deal.taskTitle || "Untitled"}
                     </div>
                     <div className="font-mono text-[10px] text-[#3A4558] mt-0.5">
                       {timeAgo(deal.createdAt)}
                     </div>
-                  </div>
+                  </Link>
                   <div className="font-mono text-[10px] text-[#7B8EA8]">
                     {truncate(deal.worker)}
                   </div>
@@ -217,7 +222,17 @@ export default async function MarketplacePage() {
                   <div>
                     <StatusBadge status={deal.status} />
                   </div>
-                </Link>
+                  <div>
+                    {deal.status === "Open" && (
+                      <Link
+                        href={`/deal/${deal.id}`}
+                        className="px-2 py-1 border border-[#F0A500] text-[#F0A500] font-mono text-[10px] tracking-widest hover:bg-[#F0A500] hover:text-[#050608] transition-colors"
+                      >
+                        HIRE
+                      </Link>
+                    )}
+                  </div>
+                </div>
               ))}
             </div>
           </div>

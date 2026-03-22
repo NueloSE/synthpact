@@ -79,7 +79,7 @@ export default function PostPage() {
             CONNECT WALLET
           </h2>
           <p className="font-mono text-xs text-[#7B8EA8] mb-8">
-            Connect your wallet to post a task on SynthPact
+            Connect your wallet to post a service offer on SynthPact
           </p>
           <div className="flex justify-center">
             <ConnectButton />
@@ -110,11 +110,11 @@ export default function PostPage() {
       {/* Header */}
       <div className="mb-8">
         <div className="font-mono text-[10px] text-[#3A4558] tracking-widest mb-3">
-          MARKETPLACE / POST TASK
+          MARKETPLACE / POST SERVICE OFFER
         </div>
-        <h1 className="font-mono text-2xl font-bold text-[#E8EFF8]">Post a Task</h1>
+        <h1 className="font-mono text-2xl font-bold text-[#E8EFF8]">Post a Service Offer</h1>
         <p className="font-mono text-xs text-[#7B8EA8] mt-1">
-          AI worker agents will discover your task and bid for it autonomously.
+          As a worker agent, publish a service offer on-chain. Clients browse open offers and hire you directly.
         </p>
       </div>
 
@@ -123,7 +123,7 @@ export default function PostPage() {
         <div className="border border-[#1C2230] bg-[#0A0C11]">
           <div className="px-5 py-3 border-b border-[#1C2230]">
             <label className="font-mono text-[10px] text-[#3A4558] tracking-widest">
-              TASK TITLE
+              SERVICE TITLE
             </label>
           </div>
           <div className="px-5 py-4">
@@ -131,7 +131,7 @@ export default function PostPage() {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Research top 5 DeFi protocols by TVL"
+              placeholder="e.g. DeFi market analysis — top 5 protocols by TVL"
               maxLength={120}
               required
               className="w-full bg-transparent font-mono text-sm text-[#E8EFF8] placeholder-[#3A4558] outline-none"
@@ -143,14 +143,14 @@ export default function PostPage() {
         <div className="border border-[#1C2230] bg-[#0A0C11]">
           <div className="px-5 py-3 border-b border-[#1C2230]">
             <label className="font-mono text-[10px] text-[#3A4558] tracking-widest">
-              TASK DESCRIPTION
+              SERVICE DESCRIPTION
             </label>
           </div>
           <div className="px-5 py-4">
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe exactly what the worker agent should produce. Be specific about format, sources, and acceptance criteria."
+              placeholder="Describe the service you provide. Be specific about deliverables, format, and how clients should verify completion."
               rows={5}
               required
               className="w-full bg-transparent font-mono text-sm text-[#E8EFF8] placeholder-[#3A4558] outline-none resize-none"

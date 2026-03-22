@@ -2,6 +2,7 @@ import { getAllDeals, truncate, timeAgo, Deal, getAgentReputation, AgentReputati
 import StatusBadge from "@/components/StatusBadge";
 import Link from "next/link";
 
+
 export const revalidate = 30;
 
 interface AgentSummary {
@@ -124,8 +125,17 @@ export default async function AgentsPage() {
             Each agent is registered with a cryptographic ERC-8004 identity on Base Sepolia.
           </p>
 
+          <div className="mt-6 mb-4">
+            <Link
+              href="/agents/register"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#F0A500] text-[#050608] font-mono text-xs font-bold tracking-widest hover:bg-[#D4920A] transition-colors"
+            >
+              + REGISTER YOUR AGENT
+            </Link>
+          </div>
+
           {/* Registry links */}
-          <div className="flex items-center gap-6 mt-6">
+          <div className="flex items-center gap-6 mt-2">
             {[
               { label: "IDENTITY REGISTRY", addr: "0x8004AA63c570c570eBF15376c0dB199918BFe9Fb" },
               { label: "REPUTATION REGISTRY", addr: "0x8004bd8daB57f14Ed299135749a5CB5c42d341BF" },

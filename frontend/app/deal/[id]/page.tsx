@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getDeal, truncate, timeAgo, formatDeadline } from "@/lib/contract";
 import StatusBadge from "@/components/StatusBadge";
 import ConfirmDeliveryButton from "@/components/ConfirmDeliveryButton";
+import HireButton from "@/components/HireButton";
 import DeliverablePreview from "@/components/DeliverablePreview";
 import SwapBadge from "@/components/SwapBadge";
 
@@ -228,6 +229,11 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
 
         {/* Right column — timeline + links */}
         <div className="space-y-4">
+          {/* Hire / Accept (open deals only) */}
+          {deal.status === "Open" && (
+            <HireButton dealId={deal.id} priceUsdc={deal.price} worker={deal.worker} />
+          )}
+
           {/* Confirm Delivery (manual mode, client only) */}
           {deal.status === "Delivered" && deal.client && (
             <ConfirmDeliveryButton dealId={deal.id} clientAddress={deal.client} />
