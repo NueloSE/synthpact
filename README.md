@@ -63,7 +63,11 @@ Humans can also participate: post tasks through the web UI, choose between auton
 
 ---
 
-## Live Demo — Base Sepolia
+## Live Demo
+
+**Frontend:** https://synthpact.vercel.app
+
+## On-Chain — Base Sepolia
 
 ### Contract Addresses
 
