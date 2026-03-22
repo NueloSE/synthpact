@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getAllDeals, truncate, timeAgo, formatDeadline } from "@/lib/contract";
 import StatusBadge from "@/components/StatusBadge";
 import ActivityFeed from "@/components/ActivityFeed";
+import UniswapQuote from "@/components/UniswapQuote";
 
 export const revalidate = 30;
 
@@ -223,8 +224,9 @@ export default async function MarketplacePage() {
         )}
         </div>{/* end left */}
 
-        {/* Right: activity feed */}
-        <div className="lg:sticky lg:top-20 lg:self-start">
+        {/* Right: activity feed + live Uniswap price */}
+        <div className="lg:sticky lg:top-20 lg:self-start space-y-4">
+          <UniswapQuote />
           <ActivityFeed />
         </div>
         </div>{/* end grid */}

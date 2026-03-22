@@ -151,12 +151,68 @@ Respond with ONLY a JSON object: { "selectedDealId": number, "reason": string }`
   return selected || affordable[0];
 }
 
+// ─── Uniswap Developer Platform API — pre-swap quote ────────────────────────
+
+const UNISWAP_API_KEY = process.env.UNISWAP_API_KEY!;
+const WETH_MAINNET    = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+const USDC_MAINNET    = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+
+async function fetchUniswapQuote(usdcAmount: bigint): Promise<void> {
+  // Convert USDC amount to approximate WETH input (use 0.1 ETH as reference)
+  const wethIn = "100000000000000000"; // 0.1 WETH
+  console.log(`\n[CLIENT] Fetching Uniswap API quote (0.1 WETH → USDC on mainnet for reference pricing)...`);
+  try {
+    const res = await fetch("https://trade-api.gateway.uniswap.org/v1/quote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": UNISWAP_API_KEY },
+      body: JSON.stringify({
+        type: "EXACT_INPUT",
+        amount: wethIn,
+        tokenInChainId: 1,
+        tokenOutChainId: 1,
+        tokenIn: WETH_MAINNET,
+        tokenOut: USDC_MAINNET,
+        swapper: wallet.address,
+        slippageTolerance: 0.5,
+      }),
+    });
+    const data = await res.json() as any;
+    if (data?.quote?.output?.amount) {
+      const usdcOut = Number(data.quote.output.amount) / 1e6;
+      const ethPrice = usdcOut / 0.1;
+      console.log(`[CLIENT] ✓ Uniswap API quote: 0.1 WETH → ${usdcOut.toFixed(2)} USDC (ETH price: ~$${ethPrice.toFixed(0)})`);
+      console.log(`[CLIENT]   Route: ${data.quote.route?.[0]?.[0]?.type ?? "classic"} | quoteId: ${data.quote.quoteId}`);
+      appendLog({
+        step: "uniswap_api_quote",
+        agent: "client",
+        source: "Uniswap Developer Platform API",
+        endpoint: "https://trade-api.gateway.uniswap.org/v1/quote",
+        tokenIn: "WETH (mainnet reference)",
+        tokenOut: "USDC",
+        amountIn: "0.1 WETH",
+        amountOut: `${usdcOut.toFixed(2)} USDC`,
+        ethPriceUSD: ethPrice.toFixed(0),
+        quoteId: data.quote.quoteId,
+        route: data.quote.route?.[0]?.[0]?.type,
+        requestId: data.requestId,
+      });
+    } else {
+      console.log(`[CLIENT] Uniswap API response:`, JSON.stringify(data).slice(0, 120));
+    }
+  } catch (e: any) {
+    console.log(`[CLIENT] Uniswap API quote failed: ${e.message} (non-blocking)`);
+  }
+}
+
 // ─── Step 4: Accept deal (lock USDC in escrow) ───────────────────────────────
 
 async function acceptDeal(deal: any): Promise<void> {
   console.log(`\n[CLIENT] Step 4: Accepting Deal #${deal.id} | Price: ${formatUSDC(deal.price)} USDC...`);
   const contract = getSynthPact(wallet);
   const usdc     = getUSDC(wallet);
+
+  // Fetch Uniswap API quote for reference pricing before swap
+  await fetchUniswapQuote(deal.price);
 
   // Check USDC balance
   const balance = await usdc.balanceOf(wallet.address);
